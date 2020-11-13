@@ -11,12 +11,14 @@ class CTCModel():
                  batch_size,  
                  input_size, 
                  vocab_size, 
+                 nb_epoch = 5, 
                  architecture="model"):
 
         self.batch_size = batch_size
         self.vocab_size = vocab_size
         self.input_size = input_size
         self.model = None
+        self.nb_epoch = nb_epoch
         self.architecture = globals()[architecture]
 
 
@@ -104,7 +106,7 @@ class CTCModel():
             x=None,
             y=None,
             batch_size=None,
-            epochs=1,
+            epochs=2,
             verbose=1,
             callbacks=None,
             validation_split=0.0,
@@ -120,19 +122,12 @@ class CTCModel():
             workers=1,
             use_multiprocessing=False,
             **kwargs):
-        """
-        Model training on data yielded (fit function has support to generator).
-        A fit() abstration function of TensorFlow 2.
-        Provide x parameter of the form: yielding (x, y, sample_weight).
-        :param: See tensorflow.keras.Model.fit()
-        :return: A history object
-        """
 
-        # remove ReduceLROnPlateau (if exist) when use schedule learning rate
-        # if callbacks and self.learning_schedule:
-        #     callbacks = [x for x in callbacks if not isinstance(x, ReduceLROnPlateau)]
 
-        out = self.model.fit(x=x, y=y,
+        if callbacks and self.learning_schedule:
+            callbacks = [x for x in callbacks if not isinstance(x, ReduceLROnPlateau)]
+
+        out = self.model.fit(x=x, y=y, epochs=epochs,
                              callbacks=callbacks, validation_split=validation_split,
                              validation_data=validation_data, shuffle=shuffle,
                              class_weight=class_weight, sample_weight=sample_weight,
@@ -153,9 +148,6 @@ class CTCModel():
                 use_multiprocessing=False,
                 ctc_decode=True):
         """
-        Model predicting on data yielded (predict function has support to generator).
-        A predict() abstration function of TensorFlow 2.
-        Provide x parameter of the form: yielding [x].
         :param: See tensorflow.keras.Model.predict()
         :return: raw data on `ctc_decode=False` or CTC decode on `ctc_decode=True` (both with probabilities)
         """
@@ -164,17 +156,12 @@ class CTCModel():
             print("Model Predict")
 
         out = self.model.predict(x=x, batch_size=batch_size, verbose=verbose)
-                                #  callbacks=callbacks, max_queue_size=max_queue_size,
-                                #  workers=workers, use_multiprocessing=use_multiprocessing)
+
         if not ctc_decode:
             return np.log(out.clip(min=1e-8)), []
 
         steps_done = 0
         steps = out.shape[0]
-        # if verbose == 1:
-        #     print("CTC Decode")
-        #     progbar = tf.keras.utils.Progbar(target=steps)
-
         input_length = len(max(out, key=len))
 
         predicts, probabilities = [], []
@@ -187,21 +174,13 @@ class CTCModel():
 
             decode, log = K.ctc_decode(x_test,
                                        x_test_len)
-                                    #    greedy=self.greedy,
-                                    #    beam_width=self.beam_width,
-                                    #    top_paths=self.top_paths)
+ 
 
             probabilities.extend([np.exp(x) for x in log])
             decode = [[[int(p) for p in x if p != -1] for x in y] for y in decode]
             predicts.extend(np.swapaxes(decode, 0, 1))
 
-            # if verbose == 1:
-            #     progbar.update(steps_done)
-
         return (predicts, probabilities)
-
-    # @tf.function
-    # def f(x, y):
 
 
     @staticmethod

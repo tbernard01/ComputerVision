@@ -1,15 +1,21 @@
 """
 Provides options via the command line to perform project tasks.
 * `--source`: dataset/model name (bentham, iam, rimes, saintgall, washington)
-* `--image`: predict a single image with the source parameter
+* `--target`: path to target dir
+* `--output : path to output dir
 * `--train`: train model with the source argument
 * `--test`: evaluate and predict model with the source argument
 * `--epochs`: number of epochs
 * `--batch_size`: number of batches
 """
 
+"""
+Inspired from Yann Soulard github and paper. The Dataset has been given 
+by Yann Soulard himself during Sequential Data Analysis, during my 
+last M2 year. 
+"""
+
 import os
-# import cv2
 import h5py
 import utils 
 import string
@@ -31,17 +37,12 @@ if __name__ == '__main__':
     parser.add_argument("--test", action="store_true", default=False)
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--batch_size", type=int, default=50)
-    parser.add_argument("--output", type=str, default='output')
-    parser.add_argument("--target", type=str, default='target')
+    parser.add_argument("--output", type=str, default='output/')
+    parser.add_argument("--target", type=str, default='target/')
 
 
     args = parser.parse_args()
-    print("Parsers OK")
-
-    # raw_path = os.path.join("..", "raw", args.source)
-    # source_path = os.path.join("..", "data", f"{args.source}.hdf5")
-    # output_path = os.path.join("..", "output", args.source, args.arch)
-    # target_path = os.path.join(output_path, "checkpoint_weights.hdf5")
+    print("Parsers OK", args)
 
     os.makedirs(args.output, exist_ok=True)
     os.makedirs(args.target, exist_ok=True)
@@ -55,7 +56,7 @@ if __name__ == '__main__':
     print("Network OK")
     network.compile(0.001)
     network.summary()
-    callbacks = network.get_callbacks(logdir=args.output, checkpoint=args.target, verbose=1)
+    callbacks = network.get_callbacks(logdir=args.output, checkpoint=args.target + "checkpoints_", verbose=1)
 
     start_time = datetime.datetime.now()
 
@@ -68,30 +69,16 @@ if __name__ == '__main__':
                  shuffle=True,
                  verbose=1)
 
-        #     total_time = datetime.datetime.now() - start_time
+    total_time = datetime.datetime.now() - start_time
+    
+    loss = h.history['loss']
+    val_loss = h.history['val_loss']
 
-        #     loss = h.history['loss']
-        #     val_loss = h.history['val_loss']
+    min_val_loss = min(val_loss)
+    min_val_loss_i = val_loss.index(min_val_loss)
 
-        #     min_val_loss = min(val_loss)
-        #     min_val_loss_i = val_loss.index(min_val_loss)
-
-        #     time_epoch = (total_time / len(loss))
-        #     total_item = (dtgen.size['train'] + dtgen.size['valid'])
-
-        #     t_corpus = "\n".join([
-        #         f"Total train images:      {dtgen.size['train']}",
-        #         f"Total validation images: {dtgen.size['valid']}",
-        #         f"Batch:                   {dtgen.batch_size}\n",
-        #         f"Total time:              {total_time}",
-        #         f"Time per epoch:          {time_epoch}",
-        #         f"Time per item:           {time_epoch / total_item}\n",
-        #         f"Total epochs:            {len(loss)}",
-        #         f"Best epoch               {min_val_loss_i + 1}\n",
-        #         f"Training loss:           {loss[min_val_loss_i]:.8f}",
-        #         f"Validation loss:         {min_val_loss:.8f}"
-        #     ])
-
-        #     with open(os.path.join(output_path, "train.txt"), "w") as lg:
-        #         lg.write(t_corpus)
-        #         print(t_corpus)
+    time_epoch = (total_time / len(loss))
+    print("total time : ", total_time)
+    
+    total_item = (dtgen.size['train'] + dtgen.size['valid'])
+    print(total_item)
